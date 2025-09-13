@@ -136,31 +136,36 @@ class Local:
         self.com = com
 
 def build_tree(arr):
-    def _build_tree(data, parent_count):
-        for key, value in data.items():
-            state_count = parent_count[:]
-            state_node = Node(key, state_count)
-            for local_obj in value:
-                max_votes = max(local_obj.bjp, local_obj.cong, local_obj.com)
-                if max_votes == local_obj.bjp:
-                    state_count[0] += 1
-                elif max_votes == local_obj.cong:
-                    state_count[1] += 1
-                else:
-                    state_count[2] += 1
-                district_node = Node("District", [local_obj.bjp, local_obj.cong, local_obj.com])
-                state_node.children.append(district_node)
-            return state_node
+    def _build_tree(key, value, parent_count):
+        state_count = parent_count[:]
+        state_node = Node(key, state_count)
+        
+        for i, local_obj in enumerate(value):
+            max_votes = max(local_obj.bjp, local_obj.cong, local_obj.com)
+            if max_votes == local_obj.bjp:
+                state_count[0] += 1
+            elif max_votes == local_obj.cong:
+                state_count[1] += 1
+            else:
+                state_count[2] += 1
+                
+            district_node = Node(f"District {i+1}", [local_obj.bjp, local_obj.cong, local_obj.com])
+            state_node.children.append(district_node)
+        
+        state_node.count = state_count
+        return state_node
 
     root = Node("National", [0, 0, 0])
-    national_counts = [0, 0, 0]
+    
     for key, value in arr.items():
-        state_node = _build_tree({key: value}, root.count)
+        state_node = _build_tree(key, value, root.count)
         root.children.append(state_node)
-        national_counts[0] += state_node.count[0]
-        national_counts[1] += state_node.count[1]
-        national_counts[2] += state_node.count[2]
-    root.count = national_counts
+        
+        # Update national counts
+        root.count[0] += state_node.count[0]
+        root.count[1] += state_node.count[1]
+        root.count[2] += state_node.count[2]
+    
     return root
 
 def vote(root):
@@ -172,37 +177,51 @@ def vote(root):
 
     if choice == 1:
         root.count[0] += 1
+        print("Voted for BJP.")
     elif choice == 2:
         root.count[1] += 1
+        print("Voted for Congress.")
     elif choice == 3:
         root.count[2] += 1
+        print("Voted for Communist.")
     else:
         print("Invalid choice")
 
-def print_tree_leaf_to_root(node):
+def print_tree_leaf_to_root(node, level=0):
     if node is None:
         return
+    
+    # Print children first (leaf nodes)
     for child in node.children:
-        print_tree_leaf_to_root(child)
-    print(node.key, node.count)
+        print_tree_leaf_to_root(child, level + 1)
+    
+    # Then print current node
+    indent = "  " * level
+    print(f"{indent}{node.key}: BJP={node.count[0]}, Congress={node.count[1]}, Communist={node.count[2]}")
 
 # Main menu driven loop
 registration_system = CandidateRegistration()
 voter_registry = VotersRegistration()
 graph = Graph()
+
+# Sample data for states and districts
 arr = {
-    "tn": [Local(30, 40, 50), Local(20, 10, 15), Local(34, 67, 31), Local(14, 58, 33)],
-    "kerala": [Local(33, 49, 50), Local(20, 30, 17), Local(34, 68, 54), Local(17, 22, 35)]
+    "Tamil Nadu": [Local(30, 40, 50), Local(20, 10, 15), Local(34, 67, 31), Local(14, 58, 33)],
+    "Kerala": [Local(33, 49, 50), Local(20, 30, 17), Local(34, 68, 54), Local(17, 22, 35)]
 }
+
+# Build the initial tree
 root = build_tree(arr)
 
 while True:
+    print("\n=== Election System ===")
     print("1. Candidate registration")
     print("2. Voters registration and booth allocation")
     print("3. Vote")
     print("4. Results")
     print("5. Exit")
     n = int(input("Your Choice: "))
+    
     if n == 1:
         # Candidate registration
         aadhar_number = input("Enter Aadhar number: ")
@@ -224,22 +243,46 @@ while True:
                 print(f"Candidate {candidate.name} from {candidate.party} party found.")
             else:
                 print("Candidate not found.")
+                
     elif n == 2:
         # Voters registration and booth allocation
         name = input("Enter your name: ")
         age = int(input("Enter your age: "))
-        state = int(input("Enter your state (2-digit code): "))
-        district = int(input("Enter your district (2-digit code): "))
+        state = int(input("Enter your state code (2-digit): "))
+        district = int(input("Enter your district code (2-digit): "))
         voter_registry.register_voter(name, age, state, district)
-        # Booth allocation logic here
-        # For now, let's assume it's integrated with voter registration
+        
+        # Add some sample edges to the graph for booth allocation
+        voter_id = list(voter_registry.voters.keys())[-1]  # Get the last registered voter
+        booth_id = f"Booth_{state:02d}_{district:02d}"
+        distance = random.randint(1, 10)  # Random distance between 1-10 km
+        graph.add_edge(voter_id, booth_id, distance)
+        print(f"Assigned to {booth_id}, distance: {distance} km")
+        
     elif n == 3:
         # Vote
-        vote(root)
+        voter_id = input("Enter your voter ID: ")
+        if voter_registry.vote(voter_id):
+            vote(root)
+            
     elif n == 4:
         # Print the tree from leaf to root
+        print("\n=== Election Results ===")
         print_tree_leaf_to_root(root)
+        
+        # Determine winner
+        if root.count[0] > root.count[1] and root.count[0] > root.count[2]:
+            print(f"\nNational Winner: BJP with {root.count[0]} votes")
+        elif root.count[1] > root.count[0] and root.count[1] > root.count[2]:
+            print(f"\nNational Winner: Congress with {root.count[1]} votes")
+        elif root.count[2] > root.count[0] and root.count[2] > root.count[1]:
+            print(f"\nNational Winner: Communist with {root.count[2]} votes")
+        else:
+            print("\nIt's a tie! No clear national winner.")
+            
     elif n == 5:
+        print("Exiting the system. Thank you!")
         break
+        
     else:
         print("Invalid choice. Please enter a number between 1 and 5.")
