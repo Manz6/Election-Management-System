@@ -20,12 +20,12 @@ Tracks whether a voter has already voted.
 Graph structure connects residents and polling booths.
 Dijkstra’s algorithm (heapq) finds the shortest path to allocate the nearest booth.
 
-4)Voting (Tree)
+4) Voting (Tree)
 Hierarchical tree structure (National → States → Districts).
 Each district stores votes for parties (BJP, Congress, Communist).
 Aggregates results upward to state and national level.
 
-5)Menu System
+5) Menu System
 Candidate Registration
 Voter Registration & Booth Allocation
 Voting
